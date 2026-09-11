@@ -161,8 +161,8 @@ createServer(async (req, res) => {
     sessionIdGenerator: undefined,
   });
   res.on("close", () => {
-    void transport.close();
-    void server.close();
+    transport.close().catch((err) => console.error("transport close failed", err));
+    server.close().catch((err) => console.error("server close failed", err));
   });
   try {
     await server.connect(transport);
