@@ -24,6 +24,16 @@ import { z } from "zod";
 
 const execFileAsync = promisify(execFile);
 
+/**
+ * A slow transcribe call outlasts the caller's own round-trip patience, so a
+ * retry lands here as a second concurrent request for the same file before
+ * the first has finished. Without this, each retry spawned its own `mw`
+ * child — multiple whisper jobs fighting over one GPU. Keyed on the resolved
+ * path plus language/model so a genuinely different request isn't coalesced
+ * into someone else's job.
+ */
+const inFlight = new Map<string, ReturnType<typeof execFileAsync>>();
+
 const TRANSCRIBE_DIR =
   process.env.MACWHISPER_MCP_DIR ?? path.join(homedir(), "nanoclaw-transcribe");
 // Where MacWhisper's own installer puts the CLI (Settings → Advanced).
@@ -114,11 +124,19 @@ function makeServer(): McpServer {
       if (language) args.push("--language", language);
       if (model) args.push("--model", model);
 
-      try {
-        const { stdout } = await execFileAsync(MW_BINARY, args, {
+      const key = `${real}\0${language ?? ""}\0${model ?? ""}`;
+      let job = inFlight.get(key);
+      if (!job) {
+        job = execFileAsync(MW_BINARY, args, {
           timeout: TRANSCRIBE_TIMEOUT_MIN * 60_000,
           maxBuffer: MAX_OUTPUT_BYTES,
         });
+        inFlight.set(key, job);
+        job.finally(() => inFlight.delete(key)).catch(() => {});
+      }
+
+      try {
+        const { stdout } = await job;
         const transcript = stdout.trim();
         if (!transcript)
           return fail(`MacWhisper returned an empty transcript for ${file}.`);
