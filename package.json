@@ -1,0 +1,14 @@
+{
+  "name": "macwhisper-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MacWhisper transcription as an MCP tool over streamable HTTP, for NanoClaw agent containers",
+  "scripts": {
+    "start": "bun run server.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "zod": "4.6.2"
+  }
+}
