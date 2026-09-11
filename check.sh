@@ -31,11 +31,11 @@ expect "rejects a request with no token" \
   '401'
 
 expect "path separators are refused" \
-  "$(call '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"transcribe","arguments":{"file":"../../etc/hosts"}}}')" \
+  "$(call '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"transcribe_start","arguments":{"file":"../../etc/hosts"}}}')" \
   'no path separators'
 
 expect "a missing file is named, not swallowed" \
-  "$(call '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"transcribe","arguments":{"file":"definitely-absent.mp3"}}}')" \
+  "$(call '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"transcribe_start","arguments":{"file":"definitely-absent.mp3"}}}')" \
   'No such file'
 
 # A symlink inside the directory still points outside it — the basename check
@@ -43,8 +43,12 @@ expect "a missing file is named, not swallowed" \
 LINK_DIR=${MACWHISPER_MCP_DIR:-$HOME/nanoclaw-transcribe}
 ln -sf /etc/hosts "$LINK_DIR/checkescape.mp3"
 expect "a symlink out of the directory is refused" \
-  "$(call '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"transcribe","arguments":{"file":"checkescape.mp3"}}}')" \
+  "$(call '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"transcribe_start","arguments":{"file":"checkescape.mp3"}}}')" \
   'resolves outside'
 rm -f "$LINK_DIR/checkescape.mp3"
+
+expect "polling status before starting is refused" \
+  "$(call '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"transcribe_status","arguments":{"file":"definitely-absent.mp3"}}}')" \
+  'Call transcribe_start first'
 
 [ "$fails" -eq 0 ] && echo "all checks passed" || { echo "$fails check(s) failed"; exit 1; }
